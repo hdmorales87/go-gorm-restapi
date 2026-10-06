@@ -2,6 +2,7 @@ package router
 
 import (
 	"github.com/gorilla/mux"
+	"github.com/hdmorales87/go-gorm-restapi/repositories"
 	"github.com/hdmorales87/go-gorm-restapi/routes"
 	"github.com/hdmorales87/go-gorm-restapi/services"
 	httpSwagger "github.com/swaggo/http-swagger"
@@ -9,8 +10,11 @@ import (
 )
 
 func SetupRoutes(database *gorm.DB) *mux.Router {
-	userService := services.NewUserService(database)
-	taskService := services.NewTaskService(database)
+	taskRepository := repositories.NewTaskRepository(database)
+	userRepository := repositories.NewUserRepository(database)
+
+	var taskService services.ITaskService = services.NewTaskService(taskRepository)
+	var userService services.IUserService = services.NewUserService(userRepository)
 
 	mux := mux.NewRouter()
 	mux.HandleFunc("/", routes.HomeHandler())

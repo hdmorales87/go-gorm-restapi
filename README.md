@@ -440,7 +440,12 @@ go-example/
 ├── mappers/
 │   ├── user_mapper.go       # Conversión Model ↔ DTO (Usuario)
 │   └── task_mapper.go       # Conversión Model ↔ DTO (Tarea)
+├── repositories/
+│   ├── interfaces.go        # Interfaces de repositorios (ITaskRepository, IUserRepository)
+│   ├── task_repository.go   # Implementación de repositorio de tareas con GORM
+│   └── user_repository.go   # Implementación de repositorio de usuarios con GORM
 ├── services/
+│   ├── interfaces.go        # Interfaces de servicios (ITaskService, IUserService)
 │   ├── user_service.go      # Lógica de negocio de usuarios
 │   └── task_service.go      # Lógica de negocio de tareas
 ├── routes/
@@ -458,41 +463,96 @@ go-example/
 
 ### Arquitectura en Capas
 
-El proyecto sigue una arquitectura en capas para mantener el código desacoplado y mantenible:
+El proyecto sigue una arquitectura en capas (Layered Architecture) con principios SOLID para mantener el código desacoplado y mantenible:
 
 - **Models**: Definición de las estructuras de datos y esquemas de base de datos (GORM)
 - **DTOs (Data Transfer Objects)**: Estructuras para entrada/salida de la API, desacopladas de los modelos de BD
 - **Mappers**: Funciones para convertir entre Models y DTOs
-- **Services**: Contienen la lógica de negocio y operaciones con la base de datos (CRUD), trabajan con Models y retornan DTOs
-- **Routes (Controllers)**: Manejan las solicitudes HTTP, reciben DTOs del request, invocan los servicios y retornan DTOs en la respuesta
-- **Router**: Configura todas las rutas e inyecta las dependencias (servicios con la base de datos)
+- **Repositories**: Capa de acceso a datos, encapsula la lógica de interacción con la base de datos. Se abstraen mediante interfaces para permitir cambio de tecnología de BD sin afectar las capas superiores.
+- **Services**: Contienen la lógica de negocio, trabajan con repositorios y retornan DTOs. Se abstraen mediante interfaces para facilitar testing y desacoplamiento.
+- **Routes (Controllers)**: Manejan las solicitudes HTTP, reciben DTOs del request, invocan los servicios (vía interfaces) y retornan DTOs en la respuesta
+- **Router**: Configura todas las rutas e inyecta las dependencias (repos → servicios → controladores)
 - **DB**: Configuración y conexión a la base de datos
 
 ### Flujo de Datos y Transformación
 
 1. **Request HTTP** → Llega al controller con JSON
 2. **Controller** → Decodifica JSON a DTO (CreateDTO/UpdateDTO)
-3. **Controller** → Llama al service con el DTO
+3. **Controller** → Llama al service (vía interfaz) con el DTO
 4. **Service** → Usa Mapper para convertir DTO → Model
-5. **Service** → Realiza operaciones en BD con el Model
-6. **Service** → Usa Mapper para convertir Model → DTO
-7. **Service** → Retorna el DTO al controller
-8. **Controller** → Codifica DTO a JSON y lo envía en la respuesta
+5. **Service** → Llama al repositorio (vía interfaz) con el Model
+6. **Repository** → Realiza operaciones en BD con GORM
+7. **Repository** → Retorna el Model al service
+8. **Service** → Usa Mapper para convertir Model → DTO
+9. **Service** → Retorna el DTO al controller
+10. **Controller** → Codifica DTO a JSON y lo envía en la respuesta
 
 ### Flujo de Inyección de Dependencias
 
-La "magia" de Go permite una inyección de dependencias limpia y explícita:
+La inyección de dependencias sigue una cadena explícita de arriba hacia abajo:
 
 1. **main.go**: Conecta a la base de datos y la pasa al router
-2. **router**: Recibe la base de datos, crea los servicios (`UserService`, `TaskService`) con la DB inyectada, y configura las rutas pasando los servicios a los controladores
-3. **routes (controllers)**: Reciben los servicios ya inicializados y los usan para manejar las solicitudes
-4. **services**: Tienen acceso a la base de datos a través de la inyección recibida
+2. **router**:
+   - Crea los repositorios (`TaskRepository`, `UserRepository`) con la DB inyectada
+   - Crea los servicios (`TaskService`, `UserService`) inyectando los repositorios correspondientes
+   - Configura las rutas pasando los servicios (como interfaces) a los controladores
+3. **routes (controllers)**: Reciben los servicios ya inicializados (como interfaces) y los usan para manejar las solicitudes
+4. **services**: Tienen acceso a los repositorios (como interfaces) para realizar operaciones de datos
+5. **repositories**: Tienen acceso directo a la base de datos a través de GORM
 
 Este enfoque hace que el código sea:
-- **Testeable**: Fácil mockear dependencias en tests
-- **Modular**: Cada componente tiene responsabilidades claras
+- **Testeable**: Fácil mockear repositorios para testear servicios sin base de datos, y mockear servicios para testear controladores
+- **Modular**: Cada componente tiene responsabilidades claras y está desacoplado
 - **Explícito**: Las dependencias son visibles en los parámetros de las funciones
 - **Seguro**: Los modelos de BD no se exponen directamente en la API
+- **Flexible**: Es posible cambiar la tecnología de base de datos o ORM modificando solo la capa de repositorios
+
+### Cambios Técnicos Recientes
+
+#### Implementación de Patrón Repository e Interfaces
+
+Se ha refactorizado la arquitectura para seguir mejores prácticas de diseño en Go, implementando:
+
+**1. Capa de Repositorios (Nueva)**
+- Se creó el directorio `repositories/` con:
+  - `interfaces.go`: Define las interfaces `ITaskRepository` y `IUserRepository` con métodos CRUD
+  - `task_repository.go`: Implementación concreta usando GORM para operaciones de tareas
+  - `user_repository.go`: Implementación concreta usando GORM para operaciones de usuarios
+
+**2. Interfaces de Servicios**
+- Se creó `services/interfaces.go` con:
+  - `ITaskService`: Define todos los métodos del servicio de tareas
+  - `IUserService`: Define todos los métodos del servicio de usuarios
+
+**3. Refactorización de Servicios**
+- `services/task_service.go`: Ya no depende directamente de GORM. Ahora recibe `ITaskRepository` por inyección de dependencias.
+- `services/user_service.go`: Ya no depende directamente de GORM. Ahora recibe `IUserRepository` por inyección de dependencias.
+
+**4. Actualización de Controladores**
+- `routes/tasks.routes.go`: Todos los handlers ahora reciben `ITaskService` en lugar de `*TaskService`
+- `routes/users.routes.go`: Todos los handlers ahora reciben `IUserService` en lugar de `*UserService`
+
+**5. Actualización del Router**
+- `router/router.go`: Se modificó el flujo de inyección de dependencias:
+  ```go
+  // Antes: Servicios recibían la base de datos directamente
+  userService := services.NewUserService(database)
+  taskService := services.NewTaskService(database)
+
+  // Ahora: Repositorios reciben la DB, servicios reciben repositorios
+  taskRepository := repositories.NewTaskRepository(database)
+  userRepository := repositories.NewUserRepository(database)
+  var taskService services.ITaskService = services.NewTaskService(taskRepository)
+  var userService services.IUserService = services.NewUserService(userRepository)
+  ```
+
+**Beneficios de los Cambios:**
+
+- **Principio de Inversión de Dependencias (DIP)**: Las capas superiores no dependen de implementaciones concretas, sino de abstracciones (interfaces)
+- **Testing mejorado**: Posibilidad de crear mocks de repositorios para testear servicios sin necesidad de una base de datos real
+- **Cambio de tecnología**: Si se desea cambiar GORM por otro ORM (como SQLBoiler, sqlx, etc.), solo se modifican las implementaciones de los repositorios sin afectar servicios o controladores
+- **Separación de responsabilidades**: Los repositorios manejan acceso a datos, los servicios manejan lógica de negocio, los controladores manejan HTTP
+- **Desacoplamiento**: Cada capa es independiente y puede evolucionar por separado
 
 ## Endpoints de la API
 

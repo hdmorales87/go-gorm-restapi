@@ -5,68 +5,66 @@ import (
 
 	"github.com/hdmorales87/go-gorm-restapi/dto"
 	"github.com/hdmorales87/go-gorm-restapi/mappers"
-	"github.com/hdmorales87/go-gorm-restapi/models"
-	"gorm.io/gorm"
+	"github.com/hdmorales87/go-gorm-restapi/repositories"
 )
 
 type TaskService struct {
-	DB *gorm.DB
+	TaskRepository repositories.ITaskRepository
 }
 
-func NewTaskService(db *gorm.DB) *TaskService {
-	return &TaskService{DB: db}
+func NewTaskService(taskRepository repositories.ITaskRepository) *TaskService {
+	return &TaskService{TaskRepository: taskRepository}
 }
 
 func (s *TaskService) GetAllTasks() ([]dto.TaskDTO, error) {
-	var tasks []models.Task
-	result := s.DB.Find(&tasks)
-	if result.Error != nil {
-		return nil, result.Error
+	tasks, err := s.TaskRepository.FindAll()
+	if err != nil {
+		return nil, err
 	}
 	return mappers.TasksToDTO(tasks), nil
 }
 
 func (s *TaskService) GetTaskByID(id string) (*dto.TaskDTO, error) {
-	var task models.Task
-	result := s.DB.First(&task, id)
-	if result.Error != nil {
+	task, err := s.TaskRepository.FindByID(id)
+	if err != nil {
 		return nil, errors.New("Task not found")
 	}
-	taskDTO := mappers.TaskToDTO(task)
+	taskDTO := mappers.TaskToDTO(*task)
 	return &taskDTO, nil
 }
 
 func (s *TaskService) CreateTask(taskDTO dto.CreateTaskDTO) (*dto.TaskDTO, error) {
 	task := mappers.CreateTaskDTOToModel(taskDTO)
-	result := s.DB.Create(&task)
-	if result.Error != nil {
-		return nil, result.Error
+	err := s.TaskRepository.Create(&task)
+	if err != nil {
+		return nil, err
 	}
 	createdDTO := mappers.TaskToDTO(task)
 	return &createdDTO, nil
 }
 
 func (s *TaskService) UpdateTask(id string, taskDTO dto.UpdateTaskDTO) (*dto.TaskDTO, error) {
-	var existingTask models.Task
-	result := s.DB.First(&existingTask, id)
-	if result.Error != nil {
+	existingTask, err := s.TaskRepository.FindByID(id)
+	if err != nil {
 		return nil, errors.New("Task not found")
 	}
 
 	task := mappers.UpdateTaskDTOToModel(taskDTO)
 	task.ID = existingTask.ID
-	s.DB.Save(&task)
+	err = s.TaskRepository.Update(&task)
+	if err != nil {
+		return nil, err
+	}
 	updatedDTO := mappers.TaskToDTO(task)
 	return &updatedDTO, nil
 }
 
 func (s *TaskService) DeleteTask(id string) error {
-	var task models.Task
-	result := s.DB.First(&task, id)
-	if result.Error != nil {
+	_, err := s.TaskRepository.FindByID(id)
+	if err != nil {
 		return errors.New("Task not found")
 	}
 
-	s.DB.Delete(&task, id)
-	return nil
+	err = s.TaskRepository.Delete(id)
+	return err
 }

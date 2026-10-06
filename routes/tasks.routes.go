@@ -18,7 +18,7 @@ import (
 // @Success 200 {array} dto.TaskDTO
 // @Failure 500 {object} map[string]string
 // @Router /tasks [get]
-func GetTasksHandler(taskService *services.TaskService) http.HandlerFunc {
+func GetTasksHandler(taskService services.ITaskService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		tasks, err := taskService.GetAllTasks()
 		w.Header().Set("Content-Type", "application/json")
@@ -42,7 +42,7 @@ func GetTasksHandler(taskService *services.TaskService) http.HandlerFunc {
 // @Success 200 {object} dto.TaskDTO
 // @Failure 404 {object} map[string]string
 // @Router /tasks/{id} [get]
-func GetTaskHandler(taskService *services.TaskService) http.HandlerFunc {
+func GetTaskHandler(taskService services.ITaskService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		params := mux.Vars(r)
 		task, err := taskService.GetTaskByID(params["id"])
@@ -67,7 +67,7 @@ func GetTaskHandler(taskService *services.TaskService) http.HandlerFunc {
 // @Success 201 {object} dto.TaskDTO
 // @Failure 500 {object} map[string]string
 // @Router /tasks [post]
-func CreateTaskHandler(taskService *services.TaskService) http.HandlerFunc {
+func CreateTaskHandler(taskService services.ITaskService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var taskDTO dto.CreateTaskDTO
 		json.NewDecoder(r.Body).Decode(&taskDTO)
@@ -94,7 +94,7 @@ func CreateTaskHandler(taskService *services.TaskService) http.HandlerFunc {
 // @Success 200 {object} dto.TaskDTO
 // @Failure 404 {object} map[string]string
 // @Router /tasks/{id} [put]
-func UpdateTaskHandler(taskService *services.TaskService) http.HandlerFunc {
+func UpdateTaskHandler(taskService services.ITaskService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		params := mux.Vars(r)
 		var taskDTO dto.UpdateTaskDTO
@@ -121,7 +121,7 @@ func UpdateTaskHandler(taskService *services.TaskService) http.HandlerFunc {
 // @Success 204
 // @Failure 404 {object} map[string]string
 // @Router /tasks/{id} [delete]
-func DeleteTaskHandler(taskService *services.TaskService) http.HandlerFunc {
+func DeleteTaskHandler(taskService services.ITaskService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		params := mux.Vars(r)
 		err := taskService.DeleteTask(params["id"])

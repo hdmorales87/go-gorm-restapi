@@ -18,7 +18,7 @@ import (
 // @Success 200 {array} dto.UserDTO
 // @Failure 500 {object} map[string]string
 // @Router /users [get]
-func GetUsersHandler(userService *services.UserService) http.HandlerFunc {
+func GetUsersHandler(userService services.IUserService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		users, err := userService.GetAllUsers()
 		w.Header().Set("Content-Type", "application/json")
@@ -41,7 +41,7 @@ func GetUsersHandler(userService *services.UserService) http.HandlerFunc {
 // @Success 200 {object} dto.UserDTO
 // @Failure 404 {object} map[string]string
 // @Router /users/{id} [get]
-func GetUserHandler(userService *services.UserService) http.HandlerFunc {
+func GetUserHandler(userService services.IUserService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		params := mux.Vars(r)
 		user, err := userService.GetUserByID(params["id"])
@@ -65,7 +65,7 @@ func GetUserHandler(userService *services.UserService) http.HandlerFunc {
 // @Success 200 {object} dto.UserDTO
 // @Failure 500 {object} map[string]string
 // @Router /users [post]
-func CreateUserHandler(userService *services.UserService) http.HandlerFunc {
+func CreateUserHandler(userService services.IUserService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var userDTO dto.CreateUserDTO
 		json.NewDecoder(r.Body).Decode(&userDTO)
@@ -91,7 +91,7 @@ func CreateUserHandler(userService *services.UserService) http.HandlerFunc {
 // @Success 200 {object} dto.UserDTO
 // @Failure 404 {object} map[string]string
 // @Router /users/{id} [put]
-func UpdateUserHandler(userService *services.UserService) http.HandlerFunc {
+func UpdateUserHandler(userService services.IUserService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		params := mux.Vars(r)
 		var userDTO dto.UpdateUserDTO
@@ -118,7 +118,7 @@ func UpdateUserHandler(userService *services.UserService) http.HandlerFunc {
 // @Success 204
 // @Failure 404 {object} map[string]string
 // @Router /users/{id} [delete]
-func DeleteUserHandler(userService *services.UserService) http.HandlerFunc {
+func DeleteUserHandler(userService services.IUserService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		params := mux.Vars(r)
 		err := userService.DeleteUser(params["id"])
