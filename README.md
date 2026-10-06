@@ -69,6 +69,37 @@ DB_PORT=5432
 
 **Importante:** El archivo `.env` ya está en `.gitignore` por seguridad, así que tus credenciales no se compartirán en el repositorio.
 
+### Crear archivo .env.docker (para Docker Compose)
+
+Para usar Docker Compose, crea un archivo `.env.docker` en la raíz del proyecto. Puedes copiar el archivo de ejemplo:
+
+```bash
+# Windows
+copy .env.docker.example .env.docker
+
+# Linux/Mac
+cp .env.docker.example .env.docker
+```
+
+Este archivo contiene las variables de entorno específicas para los contenedores Docker:
+
+```env
+# Docker PostgreSQL Configuration
+POSTGRES_USER=someuser
+POSTGRES_PASSWORD=mysecretpassword
+POSTGRES_DB=gorm
+
+# pgAdmin Configuration
+PGADMIN_DEFAULT_EMAIL=admin@admin.com
+PGADMIN_DEFAULT_PASSWORD=admin
+PGADMIN_PORT=5050
+
+# Port mapping for PostgreSQL
+DB_PORT=5432
+```
+
+**Importante:** El archivo `.env.docker` también está en `.gitignore` por seguridad.
+
 Las dependencias principales son:
 - `github.com/gorilla/mux` - Router HTTP
 - `gorm.io/gorm` - ORM para Go
@@ -80,9 +111,18 @@ Las dependencias principales son:
 
 ## Configuración de la Base de Datos
 
-El proyecto usa PostgreSQL. La configuración de la base de datos se maneja mediante variables de entorno.
+El proyecto usa PostgreSQL. La configuración de la base de datos se maneja mediante variables de entorno separadas para la aplicación Go y para Docker Compose.
 
-### Configuración mediante archivo .env
+### Archivos de Configuración
+
+El proyecto utiliza dos archivos de configuración de variables de entorno:
+
+1. **`.env`** - Para la aplicación Go (configuración de conexión a la base de datos)
+2. **`.env.docker`** - Para Docker Compose (configuración de los contenedores PostgreSQL y pgAdmin)
+
+Esta separación permite tener configuraciones diferentes para desarrollo local (con Docker) y producción (con base de datos externa).
+
+### Configuración para la Aplicación Go (.env)
 
 1. Copia el archivo de ejemplo:
 ```bash
@@ -91,6 +131,7 @@ cp .env.example .env
 
 2. Edita el archivo `.env` con tus credenciales de PostgreSQL:
 ```env
+# Database Configuration (for Go application)
 DB_HOST=localhost
 DB_USER=someuser
 DB_PASSWORD=mysecretpassword
@@ -100,9 +141,36 @@ DB_PORT=5432
 
 3. El archivo `.env` está en `.gitignore` por seguridad, así que no se compartirán tus credenciales en el repositorio.
 
+### Configuración para Docker Compose (.env.docker)
+
+1. Copia el archivo de ejemplo:
+```bash
+cp .env.docker.example .env.docker
+```
+
+2. Edita el archivo `.env.docker` con las credenciales para los contenedores:
+```env
+# Docker PostgreSQL Configuration
+POSTGRES_USER=someuser
+POSTGRES_PASSWORD=mysecretpassword
+POSTGRES_DB=gorm
+
+# pgAdmin Configuration
+PGADMIN_DEFAULT_EMAIL=admin@admin.com
+PGADMIN_DEFAULT_PASSWORD=admin
+PGADMIN_PORT=5050
+
+# Port mapping for PostgreSQL
+DB_PORT=5432
+```
+
+3. El archivo `.env.docker` también está en `.gitignore` por seguridad.
+
+**Nota:** Las credenciales de Docker Compose están aisladas en el archivo `.env.docker` en lugar de estar harcodeadas en `docker-compose.yml`. Esto mejora la seguridad y permite cambiar las credenciales fácilmente sin modificar el archivo de configuración de Docker.
+
 ### Configuración mediante variables de entorno del sistema
 
-Alternativamente, puedes configurar las variables de entorno directamente en tu sistema:
+Alternativamente, puedes configurar las variables de entorno directamente en tu sistema. Para la aplicación Go:
 
 **Windows (PowerShell):**
 ```powershell
@@ -131,7 +199,80 @@ export DB_NAME=gorm
 export DB_PORT=5432
 ```
 
-**Nota:** El archivo `.env` tiene prioridad sobre las variables de entorno del sistema.
+Para Docker Compose, se recomienda usar el archivo `.env.docker` en lugar de variables de entorno del sistema, ya que `docker-compose.yml` está configurado para leer de ese archivo específicamente.
+
+## Docker Compose
+
+El proyecto incluye una configuración de Docker Compose para levantar PostgreSQL y pgAdmin fácilmente.
+
+### Requisitos Previos
+
+Antes de levantar los contenedores, asegúrate de crear el archivo `.env.docker`:
+
+```bash
+# Windows
+copy .env.docker.example .env.docker
+
+# Linux/Mac
+cp .env.docker.example .env.docker
+```
+
+Edita el archivo `.env.docker` con tus credenciales deseadas.
+
+### Levantar los contenedores
+
+```bash
+docker-compose --env-file .env.docker up -d
+```
+
+Esto iniciará:
+- **PostgreSQL** en el puerto 5432 (configurable via `DB_PORT` en `.env.docker`)
+- **pgAdmin** en el puerto 5050 (configurable via `PGADMIN_PORT` en `.env.docker`)
+
+**Nota:** El flag `--env-file .env.docker` es necesario porque docker-compose por defecto solo busca archivos llamados `.env`.
+
+### Detener los contenedores
+
+```bash
+docker-compose --env-file .env.docker down
+```
+
+### Ver logs
+
+```bash
+docker-compose --env-file .env.docker logs -f
+```
+
+### Credenciales en Docker Compose
+
+Las credenciales de PostgreSQL y pgAdmin están aisladas en el archivo `.env.docker` en lugar de estar harcodeadas en `docker-compose.yml`. El archivo `docker-compose.yml` referencia estas variables usando la sintaxis `${VARIABLE}`.
+
+Variables requeridas en `.env.docker` para Docker Compose:
+- `POSTGRES_USER`: Usuario de PostgreSQL
+- `POSTGRES_PASSWORD`: Contraseña de PostgreSQL
+- `POSTGRES_DB`: Nombre de la base de datos
+- `PGADMIN_DEFAULT_EMAIL`: Email para pgAdmin
+- `PGADMIN_DEFAULT_PASSWORD`: Contraseña para pgAdmin
+- `PGADMIN_PORT`: Puerto para pgAdmin (por defecto 5050)
+- `DB_PORT`: Puerto para PostgreSQL (por defecto 5432)
+
+### Acceder a pgAdmin
+
+Una vez que los contenedores estén corriendo, accede a pgAdmin en:
+```
+http://localhost:5050
+```
+
+Credenciales por defecto (configurables en `.env`):
+- Email: `admin@admin.com`
+- Contraseña: `admin`
+
+Para conectar a PostgreSQL desde pgAdmin:
+- Host: `postgres` (nombre del servicio en docker-compose)
+- Port: `5432`
+- Database: `gorm` (o el valor de `POSTGRES_DB`)
+- Username: `someuser` (o el valor de `POSTGRES_USER`)
+- Password: `mysecretpassword` (o el valor de `POSTGRES_PASSWORD`)
 
 ## Documentación Swagger (API Documentation)
 
@@ -278,38 +419,41 @@ El archivo `.air.toml` contiene la configuración de Air:
 
 ```
 go-example/
-├── main.go              # Punto de entrada de la aplicación
-├── go.mod               # Módulos y dependencias de Go
-├── go.sum               # Checksums de dependencias
-├── .air.toml            # Configuración de Air (hot reload)
-├── .gitignore           # Archivos ignorados por Git
-├── .env.example         # Ejemplo de variables de entorno (debe copiarse a .env)
-├── .env                 # Variables de entorno (creado por el usuario, en .gitignore)
+├── main.go                  # Punto de entrada de la aplicación
+├── go.mod                   # Módulos y dependencias de Go
+├── go.sum                   # Checksums de dependencias
+├── .air.toml                # Configuración de Air (hot reload)
+├── .gitignore               # Archivos ignorados por Git
+├── .env.example             # Ejemplo de variables de entorno para la app Go (debe copiarse a .env)
+├── .env                     # Variables de entorno para la app Go (creado por el usuario, en .gitignore)
+├── .env.docker.example      # Ejemplo de variables de entorno para Docker (debe copiarse a .env.docker)
+├── .env.docker              # Variables de entorno para Docker (creado por el usuario, en .gitignore)
+├── docker-compose.yml       # Configuración de Docker Compose (PostgreSQL + pgAdmin)
 ├── db/
-│   └── connection.go    # Conexión a la base de datos
+│   └── connection.go        # Conexión a la base de datos
 ├── models/
-│   ├── User.go          # Modelo de Usuario (base de datos)
-│   └── Task.go          # Modelo de Tarea (base de datos)
+│   ├── User.go              # Modelo de Usuario (base de datos)
+│   └── Task.go              # Modelo de Tarea (base de datos)
 ├── dto/
-│   ├── user_dto.go      # DTOs de Usuario (API)
-│   └── task_dto.go      # DTOs de Tarea (API)
+│   ├── user_dto.go          # DTOs de Usuario (API)
+│   └── task_dto.go          # DTOs de Tarea (API)
 ├── mappers/
-│   ├── user_mapper.go   # Conversión Model ↔ DTO (Usuario)
-│   └── task_mapper.go   # Conversión Model ↔ DTO (Tarea)
+│   ├── user_mapper.go       # Conversión Model ↔ DTO (Usuario)
+│   └── task_mapper.go       # Conversión Model ↔ DTO (Tarea)
 ├── services/
-│   ├── user_service.go  # Lógica de negocio de usuarios
-│   └── task_service.go  # Lógica de negocio de tareas
+│   ├── user_service.go      # Lógica de negocio de usuarios
+│   └── task_service.go      # Lógica de negocio de tareas
 ├── routes/
-│   ├── index.routes.go  # Rutas principales
-│   ├── users.routes.go  # Rutas de usuarios (controladores)
-│   └── tasks.routes.go  # Rutas de tareas (controladores)
+│   ├── index.routes.go      # Rutas principales
+│   ├── users.routes.go      # Rutas de usuarios (controladores)
+│   └── tasks.routes.go      # Rutas de tareas (controladores)
 ├── router/
-│   └── router.go        # Configuración de rutas e inyección de dependencias
-├── docs/                # Documentación Swagger (generada por swag init)
-│   ├── docs.go          # Código Go generado
-│   ├── swagger.json     # Especificación OpenAPI JSON
-│   └── swagger.yaml     # Especificación OpenAPI YAML
-└── tmp/                 # Directorio temporal (compilados)
+│   └── router.go            # Configuración de rutas e inyección de dependencias
+├── docs/                    # Documentación Swagger (generada por swag init)
+│   ├── docs.go              # Código Go generado
+│   ├── swagger.json         # Especificación OpenAPI JSON
+│   └── swagger.yaml         # Especificación OpenAPI YAML
+└── tmp/                     # Directorio temporal (compilados)
 ```
 
 ### Arquitectura en Capas
@@ -395,6 +539,18 @@ go build -o main.exe .
 
 # Generar documentación Swagger
 swag init
+
+# Docker Compose - Levantar contenedores
+docker-compose --env-file .env.docker up -d
+
+# Docker Compose - Detener contenedores
+docker-compose --env-file .env.docker down
+
+# Docker Compose - Ver logs
+docker-compose --env-file .env.docker logs -f
+
+# Docker Compose - Ver estado de contenedores
+docker-compose --env-file .env.docker ps
 ```
 
 ## Licencia
